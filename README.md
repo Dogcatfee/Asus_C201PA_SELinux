@@ -1,4 +1,4 @@
-# Building a basic kernel
+# Building the mainline SELinux kernel
 ### Set-up and configure source
 Download the kernel source [selinux-4.20-rc7.tar.gz](https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/selinux.git/snapshot/selinux-4.20.tar.gz)
 
@@ -9,7 +9,7 @@ Copy the configuration file ```selinux-4.20-rc7``` from the configs folder into 
 Rename the configuration file to ```.config```
 
 ## Compile, pick one method
-### Build on chromebook
+#### Build on chromebook
 Requires a few library dependencies.
 ``` bash
 make -j4
@@ -20,7 +20,7 @@ sudo make modules_install
 sudo cp ./arch/arm/boot/zImage /boot
 ```
 
-### Build on Arch Linux host
+#### Build on Arch Linux host
 Requires x-tools7h to cross compile, this should be provided by [distccd-alarm-armv7h](https://aur.archlinux.org/packages/distccd-alarm-armv7h/)
 
 ``` bash 
@@ -43,5 +43,39 @@ This script is derived from the [RockMyy](https://github.com/Miouyouyou/RockMyy)
 Compressing the kernel makes it easier to transfer to the device.
 ```tar -cvf kernel.tar /tmp/kernel```
 
-### Flashing the kernel
+# Setting up a Fedora rootfs
+### Write partition layout
+Follow the Arch Linux guide and stop after step 9: [Asus Chromebook Flip C100P](https://archlinuxarm.org/platforms/armv7/rockchip/asus-chromebook-flip-c100p)
+
+### Write rootfs
+Download the rootfs [Fedora 29 ARMFP(armv7h) minimal ](https://download.fedoraproject.org/pub/fedora/linux/releases/29/Spins/armhfp/images/Fedora-Minimal-armhfp-29-1.2-sda.raw.xz) or whatever is newest.
+ 
+Extract the image and mount it to a loopback device.
+``` bash
+unxz Fedora-Minimal-armhfp-29-1.2-sda.raw.xz
+losetup -f -P Fedora-Minimal-armhfp-29-1.2-sda.raw
+```
+The loopback device should be visible in ```lsblk```
+```
+loop0       7:0    0   1.8G  1 loop
+├─loop0p1 259:0    0    76M  1 part
+├─loop0p2 259:1    0   489M  1 part  /run/media/user/__boot
+└─loop0p3 259:2    0   1.2G  1 part
+```
+Substitute ```/dev/sde``` with the correct disk and ```loop0``` with the correct loopback device.
+``` bash
+# Write rootfs
+dd if=/dev/loop0p3 of=/dev/sde2
+# Check and expand partition
+e2fsck -f /dev/sde2
+resize2fs /dev/sde2
+```
+Mount and delete  ```/etc/fstab```, don't need it
+```
+mount /dev/sde2 /mnt
+rm /mnt/etc/fstab
+umount /dev/sde2
+```
+
+# Flash the kernel to the kernel partition
 See [Kernel_Signer](https://github.com/Dogcatfee/Kernel_Signer)
